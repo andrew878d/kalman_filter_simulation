@@ -1,10 +1,10 @@
-%kalman filter v1.2
+%kalman filter v1.3
 %BEE499 Ghirmai Spring 2026
 
 %x is the true state. The actual position or value of the object that we
 %cant see.
 %y(n) is sensor noise. This is not a perfect value of the true value.
-%xest is the filter's estimate with ex:physics formula and sensor noise
+%xest is the filter's estimate with example physics formula and sensor noise
 %p(n) is the prediction error. This means how much we trust the current
 %estimate.
 %k(n) kalman gain helps to offset the sensor to a more accurate value.
@@ -38,6 +38,7 @@ for n = 2:N
    y(n) = c * x(n) + ynoise;
 
 end
+
 
 %Calculate x estimate step:
 
@@ -86,9 +87,53 @@ fprintf('MSE of filter: %f. \n', mse_filter);
 fprintf('MSE of sensor: %f. \n', mse_sensor);
 
 figure;
+subplot(2, 1, 1);
 plot(1:N, x, 'r', 1:N, xest,'b')
 grid on;
 xlabel('time (n)');
 ylabel('Value');
 legend('true state (x)', 'Filter estimate (xest)');
+title('standard kalman filter simulation');
 
+
+%Test experiment: increase sensor noise over time
+y_test = zeros(1, N);
+xest_test = zeros(1, N);
+p_test = zeros(1, N);
+
+%need to create initial prediction value
+p_test(1) = 1;
+
+for n = 2:N
+
+    %generate new sensor variance and sensor noise
+    v_var_test = v_variance * (n/50); %this means the v_var is growing
+    y_noise_test = sqrt(v_var_test) * randn;
+
+    %generate measurement based on true state x
+    %(this would be a real life sensor reading)
+    y_test(n) = c * x(n) + y_noise_test;
+
+    %prediction step (time update)
+    xest_test(n) = a * xest_test(n-1);
+    
+    %update prediction error
+    p_test(n) = a^2 * p_test(n-1) + w_variance;
+
+    %generate new kalman gain
+    k_test(n) = (c * p_test(n)) / ((c^2 * p_test(n)) + v_var_test);
+
+    %correction step:
+    xest_test(n) = xest_test(n) + k_test(n) * (y_test(n) - c * xest_test(n));
+    p_test(n) = (1 - c * k_test(n)) * p_test(n);
+    
+
+end
+
+subplot(2, 1, 2);
+plot(1:N, x, 'r', 1:N, xest_test,'b')
+grid on;
+xlabel('time (n)');
+ylabel('Value');
+legend('true state (x)', 'Filter estimate (xest)');
+title('experiment: increasing sensor noise over time');
