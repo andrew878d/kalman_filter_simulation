@@ -9,6 +9,8 @@
 %estimate.
 %k(n) kalman gain helps to offset the sensor to a more accurate value.
 
+clear; clc; close all;
+
 %given values:
 N=500; %amount of cycles to run in the simulation
 a=0.8; 
@@ -74,6 +76,7 @@ for i = 1:length(SNR_vector)
     %prediction ? how does this initial value affect the model ?
     p(1) = 10*randn;
 
+    
     %this is the filter loop: estimates the truth using only sensor
     %will be nested inside the SNR loop
     for n=2:N
@@ -105,6 +108,14 @@ for i = 1:length(SNR_vector)
     
     %also save this unique mse to snr in the array
     mse_array(i) = mse_filter;
+
+    %save xest at SNR = 0 and 20 to be plotted later:
+    if SNR_vector(i) == 0
+        xest_snr0 = xest;
+    end
+    if SNR_vector(i) == 20
+        xest_snr20 = xest;
+    end
    
 end
 
@@ -113,23 +124,27 @@ final_table = table(SNR_vector', mse_array', 'VariableNames', {'SNR (db)', 'MSE'
 disp(final_table);
 
 figure;
-subplot(3, 1, 1);
-plot(1:N, x, 'r', 1:N, xest,'b')
+
+%plot x and xest at snr=0
+subplot(2, 2, 1);
+plot(1:N, x, 'r', 1:N, xest_snr0,'b')
 grid on;
-xlabel('time (n)');
-ylabel('Value');
 legend('true state (x)', 'Filter estimate (xest)');
-title('standard kalman filter simulation');
+title('X vs Xest at SNR=0');
+
+%plot x and xest at snr=20
+subplot(2, 2, 2);
+plot(1:N, x, 'r', 1:N, xest_snr20,'b')
+grid on;
+legend('true state (x)', 'Filter estimate (xest)');
+title('X vs Xest at SNR=20');
 
 %plot MSE and SNR values
-subplot(3, 1, 2);
+subplot(2, 2, 3);
 plot(SNR_vector, mse_array, 'o-b')
 grid on;
-xlabel('SNR (db)');
-ylabel('mean squared error (MSE)');
-legend('SNR');
+xlabel('SNR (db)'); ylabel('mean squared error (MSE)'); legend('SNR');
 title('SNR and MSE values over time');
-
 
 
 %Test experiment: increase sensor noise over time
@@ -164,15 +179,11 @@ for n = 2:N
     xest_test(n) = xest_test(n) + k_test(n) * (y_test(n) - c * xest_test(n));
     p_test(n) = (1 - c * k_test(n)) * p_test(n);
     
-
 end
 
-subplot(3, 1, 3);
+subplot(2, 2, 4);
 plot(1:N, x, 'r', 1:N, xest_test,'b')
 grid on;
 xlabel('time (n)');
-ylabel('Value');
 legend('true state (x)', 'Filter estimate (xest)');
 title('experiment: increasing sensor noise over time');
-
-
