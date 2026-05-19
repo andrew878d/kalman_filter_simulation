@@ -1,4 +1,4 @@
-%Matrix kalman filter v1.1
+%Matrix kalman filter v1.2
 %BEE499 Ghirmai Spring 2026
 
 %x is the true state. The actual position or value of the object that we
@@ -9,7 +9,7 @@
 %estimate.
 %k(n) kalman gain helps to offset the sensor to a more accurate value.
 
-clear; clc; 
+clear; clc; close all;
 
 %given values:
 N=1000; %amount of cycles to run in the simulation
@@ -58,41 +58,70 @@ xest(:, 1) = [0;
 %setup uncertainty matrix 
 P = eye(2) *10;
 
-%simulation loop
-for n = 2:N
+%SNR setup
+SNR_vector = 0:2:20;
+mse_position_array = zeros(1, length(SNR_vector));
+mse_velocity_array = zeros(1, length(SNR_vector));
 
-   %simulation generates a random process noise:
+for n = 2:N
+    %simulation generates a random process noise:
    w = [0.5*T^2; T] * sqrt(var_w) * randn;
 
    %calculate next state based off the noise we just got
    x(:, n) = A * x(:, n-1) + w;
-
-   %measurement update step in same loop
-   %simulation generates a random measurement noise:
-   %this is like a real sensor measurment, but we randomize it here
-   v_noise = sqrt(var_v) * randn;
-   y(n) = C * x(:, n) + v_noise;
-
-   %Step 1: prediction time update
-   xest(:, n) = A*xest(:, n-1);
-   P = A*P*A'+Q;
-   K = (P*C') / (C*P*C'+R);
-
-   %Step 2: measurement update 
-   %correct our prediction
-   xest(:,n) = xest(:,n) + K* (y(n) - C*xest(:,n));
-   %update our uncertainty
-   P = (I - K*C) * P;
-
 end
 
 
-%calculate MSE for position and velocity
-mse_position = mean((x(1,:) - xest(1,:)).^2);
-mse_velocity = mean((x(2,:) - xest(2,:)).^2);
+%outer SNR loop
+for i =1:length(SNR_vector)
 
-fprintf('Position MSE: %f \n', mse_position);
-fprintf('Velocity MSE: %f \n', mse_velocity);
+    %get power of the position signal
+    %because the sensor only sees position
+    Psignal = mean((C*x).^2);
+    %noise of signal is based off of the SNR 
+    var_v = Psignal*10^(-SNR_vector(i)/10);
+    R = var_v;
+
+    y = zeros(1,N);
+    xest = zeros(2, N);
+    xest(:, 1) = [0;
+                    1];
+    P = eye(2)*10;
+
+    for n = 2:N
+       %measurement update step in same loop
+       %simulation generates a random measurement noise:
+       %this is like a real sensor measurment, but we randomize it here
+       v_noise = sqrt(var_v) * randn;
+       y(n) = C * x(:, n) + v_noise;
+    
+       %Step 1: prediction time update
+       xest(:, n) = A*xest(:, n-1);
+       P = A*P*A'+Q;
+       K = (P*C') / (C*P*C'+R);
+    
+       %Step 2: measurement update 
+       %correct our prediction
+       xest(:,n) = xest(:,n) + K* (y(n) - C*xest(:,n));
+       %update our uncertainty
+       P = (I - K*C) * P;
+    
+    end
+
+    %calculate MSE
+    mse_position_array(i) = mean((x(1,:) - xest(1,:)).^2);
+    mse_velocity_array(i) = mean((x(2,:) - xest(2,:)).^2);
+
+    %save to be plotted later
+    if SNR_vector(i) == 0
+        xest_snr0 = xest;
+    end
+    if SNR_vector(i) == 20
+        xest_snr20 = xest;
+    end
+
+
+end
 
 
 figure;
@@ -100,23 +129,54 @@ figure;
 %instead of plotting over N, plot over actual time
 time = (0: N-1) * T;
 
-%plot position
-subplot(2,1,1);
+%plot Position at SNR = 0
+subplot(3,2,1);
 plot(time, x(1,:), 'r'); 
 hold on;
-plot(time, xest(1,:), 'b'); 
+plot(time, xest_snr0(1,:), 'b');
 grid on;
-title('position truth vs estimate');
-ylabel('position (meters)');
-legend('true position', 'KF estimate');
+title('Position at SNR = 0 dB');
+ylabel('Position (m)');
+legend('Truth', 'Estimate', 'Location', 'best');
 
-%plot velocity
-subplot(2,1,2);
-plot(time, x(2,:), 'r');
+%plot Position at SNR = 20
+subplot(3,2,2);
+plot(time, x(1,:), 'r'); 
 hold on;
+plot(time, xest_snr20(1,:), 'b');
 grid on;
-plot(time, xest(2,:), 'b');
-title('true velocity vs estimate');
-ylabel('velocity (m/s)');
-xlabel('time (seconds)');
-legend('true velocity', 'KF estimate');
+title('Position at SNR = 20 dB');
+ylabel('Position (m)');
+legend('Truth', 'Estimate', 'Location', 'best');
+
+%plot Velocity at SNR = 0
+subplot(3,2,3);
+plot(time, x(2,:), 'r'); 
+hold on;
+plot(time, xest_snr0(2,:), 'b');
+grid on;
+title('Velocity at SNR = 0 dB');
+ylabel('Velocity (m/s)');
+legend('Truth', 'Estimate', 'Location', 'best');
+
+%plot Velocity at SNR = 20
+subplot(3,2,4);
+plot(time, x(2,:), 'r'); 
+hold on;
+plot(time, xest_snr20(2,:), 'b');
+grid on;
+title('Velocity at SNR = 20 dB');
+ylabel('Velocity (m/s)');
+legend('Truth', 'Estimate', 'Location', 'best');
+
+
+%Plot of MSE vs SNR for position AND velocity
+subplot(3,2,[5,6]); 
+plot(SNR_vector, mse_position_array, 'o-b'); 
+hold on;
+plot(SNR_vector, mse_velocity_array, 's-g');
+grid on;
+title('MSE vs SNR');
+xlabel('SNR (dB)');
+ylabel('MSE');
+legend('Position MSE', 'Velocity MSE');
