@@ -97,16 +97,16 @@ for n = 2:N
          -py/r2,   px/r2,  0];
          
     
-    %update uncertainty using Jacobian F
+    %NEW update uncertainty using Jacobian F
     P = F * P * F' + Q;
     
-    %expected sensor measurements
+    %NEW expected sensor measurements
     h_x = [r; atan2(py, px)];
     
-    %calculate Kalman Gain using Jacobian H
+    %NEW calculate Kalman Gain using Jacobian H
     K = (P * H') / (H * P * H' + R);
     
-    %Step 2: measurement update (correction)
+    %NEW Step 2: measurement update (correction)
     xest(:, n) = xest(:, n) + K * (y(:, n) - h_x);
     
     %update our uncertainty
